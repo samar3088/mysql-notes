@@ -1,0 +1,112 @@
+https://www.codediesel.com/php/downloading-gmail-attachments-in-php-an-update/
+
+Write Lock : 
+If we lock a table using write lock then we cant read any other table, cant write into other table and no one else read or write this this.
+
+Read Lock : 
+mutiple connection can get read lock parallely. We will not be able to write in that table or any other table
+
+explain insert into sales_history (recorded, total) values (now(), (select sum(transaction_value) from sales));
+
+above query runs in transaction in case table is INNODB, and runs as two statements if table is MyISAM
+
+# Solving above issue using below statements :
+
+lock tables sales read, sales_history write;
+select @total := sum(transaction_value) from sales;
+insert into sales_history (recorded, total) values (now(), @total);
+unlock tables;
+
+TRANSACTIONS : 
+
+Part 1 (Read and Write Locks): Read and Write and Lock {This is a possible way to safeguard queries in Case Table is MyISAM, as Row Locking isnt there in MYISAM}
+Part 1.1 : In case table is INNODB then we can achieve row locking using Transactions
+
+Part 2 : Using ACID Complaince DB (INNO DB is ACID Complaint)
+	
+		i. A - Atomicity : bunch of SQL statements executed as if one statement
+		ii. C - Consistency : In case on account deducts and amount shall be added in another account. Either both shall happen or none shall happen.
+		iii. I - Isolation : Two users shall not conflict with each other
+		iv. D - Durability : If crash happen we shall be able to recover from crash
+		
+Part 3: Transactions which are Not Transaction (using autocommit=0)		
+
+	# Now in INNO DB, all the statements which alter data in table by default runs in a transaction
+	# sql_safe_updates = 0;
+	
+	create table books(id int primary key auto_increment, name varchar(50));
+	
+	set autocommit=0;
+	insert into books (name) values ('The Universe');
+	delete from books where id=3;
+	update books set name = "The Mountain Version 2" where id=4;
+
+	select * from books;
+
+	commit;
+	-- or --
+	rollback;
+	
+Part 4: Actual Transactions
+
+	# start transaction
+	 
+	  commit;
+	  
+		* by default if we start transaction in one connection ans say change data in DB, then same thing will not be visible in another transaction   
+		
+	# Isolation Level : @@session.tx_isolation;	
+	# Row level locking works on indexes; else mysql will run a table level locks
+	# set session transaction isolation level repeatable read
+	# Serializable : 
+		i. No one can update rows/tables based on in case indices are there or not. Mysql will put a read lock on the table.
+		ii. Now say we are in transaction and reading row with id 1, as id is primary key so it is a index also. Hence only that particular row is locked.
+			Any other connection is free to update other rows in table.
+			
+			In case in our first transaction we use any column other than id, which is not an index, then whole table will be locked and we will not be able to
+			write in that table bcaz of read lock on table and not on row.
+		
+	# Repeatable Read : when we are in transaction, thn any other user making changes will not change what we see as query result
+	# Read Committed and Read Uncommitted
+	
+	** Important thing to note is any changes in one transaction may be visible in another based on isolation level and commit, but the changes will always reflect to a
+	  connection or user who is not using transactions
+	  
+	** If we are readin then we get a read lock on rows/tables, if we are updating then we get a write lock on rows/tables  
+	
+	NOTE : alter table tblname add index idx_name (column_name)
+	
+	# Savepoints : can be used to rollback to a particular place
+	
+		savepoint savepoint_name;
+		
+		rollback to savepoint_name;
+		
+	# Commit and Rollback releases the locks. How ever rollback to savepoint doesnt releases the lock.
+
+	@@ Transactions are mostly used in transfer balance like requirement. But here is the issue 
+
+		Say account 1 is having rs 800, and account 2 is having rs 200. We run a transaction that deducts Rs 500 from account 1 and adds to account 2. 
+		Here again if from another transaction all statements are executed , then account 1 will have - 300 Rs, and account will have additional 300 Rs, which is in correct.
+		
+	# Select for update (Transactions) : the above accounting problem cant be solved by table locking or row locking or Simple transactions, as though every 
+      connection will wait before locks are released , but eventually upon excution account 1 will be having -ve balance.
+
+      This can be resolved using : select for update (this gives a write lock on the rows selected)	 
+
+		start transaction;
+		set @withdraw = 500;
+		set @account = 1;
+		select balance from accounts where id=@account for update; (No one can read or write the row, We get a write lock)
+		-- Check that the balance is bigger than the withdrawal amount
+		update accounts set balance = balance - @withdraw where id=@account;
+		commit;
+	
+	# Locks in shared mode: (locks rows in read mode,its special because it wont allow even the statements outside other transactions to update the same row)
+	
+		start transaction;
+		select id from libraries where name="Nottingham" lock in share mode; (Gives a read lock on rows)
+		insert into books (title, library_id) values ("Painting for Beginners", 2);
+		commit;
+	
+		

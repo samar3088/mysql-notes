@@ -1,0 +1,393 @@
+# STORED PROCEDURES : (SP)
+	=> collection of mysql statements which can be run one command. They are not stored in Database, but they are associated with a database.
+	=> Users can be given permission to run procedures (same as permissions on Tables), by setting permission to definer (definer being the user who created current SP.)
+	=> To View what all SP's are there run command "show databases", it gives a mysql databse, then run command "select cast(body as char) from mysql.proc;" 
+	: this will return all the SP's
+
+	1. Changing delimiter : for every mysql statement colon is the delimiter
+	
+		delimiter $$
+		
+	2. Hello world in Stored Procedure :
+		
+		delimiter ;;
+		create procedure HelloWorld()
+		begin
+			select "Hello World!!!";
+		end;;
+
+		call HelloWorld();;
+		
+	3. Dropping a procedure :
+
+		Drop procedure HelloWorld; (Curly Braces not needed to drop)
+		
+		## Note SP's return the last select statement executed result;	
+	 
+		delimiter ;;
+		create procedure HelloWorld()
+		begin
+			select "Hello World!!!";
+			select "Hello";
+		end;;
+
+		call HelloWorld();;
+	
+	4. Editing a Stored Procedure : from db panel select and edit.
+	
+	5. Setting definer for permissions : (procedure runs with the permissions of definer, also to execute the SP itself we need user to have permission on SP)
+	
+		i. create user shopuser@localhost identified by 'hello';
+		ii. Now "sql security definer" checks the permissions of user on the tables used in SP, and decides if the SP can return result or not. It can be also 
+		"sql security invoker". Mean user shall have permission to run the SP and also the permission on all tables in the SP.
+	
+		In below example, SP will not execute as the user created above "shopuser", has not been given permission on any db tables (customers) and procedure.
+		
+			DELIMITER $$
+
+			CREATE definer=shopuser@localhost PROCEDURE `ShowCustomers`()
+			sql security definer
+			begin
+			select * from customers;
+			end$$
+
+			DELIMITER ;
+			
+			** 
+    6. Giving permission :
+	
+		i. grant execute on procedure dbnamme.procedurename to shopuser@localhost
+		ii. grant select on dbnamme.tablename to shopuser@localhost
+		
+	7. Passing Parameters to SP : There can be two types of params being "in" and "out". "in" as name says is for sending param to the SP and "out" is to get result.
+	
+		i. "in"
+		
+			DELIMITER $$
+
+			CREATE PROCEDURE `ShowBooks`(in maxId int)
+			begin
+			select * from books where id < maxId;
+			end$$
+
+			DELIMITER ;
+
+			call ShowBooks(4);
+			
+		## multiple param can be sent
+
+	8. Select into variable : Needed to learn out params.
+	
+		i. select @id := id, @title := title from users where id = 1;
+		ii. select id,title into @id,@title	from users where id = 1; (Preferrable for Stored procedure)
+		
+	9. Out Params :
+
+		DELIMITER $$
+
+		CREATE PROCEDURE `ShowBooks`(in theId int, out outId int, out outTitle varchar(50))
+		begin
+		select id, title into outId, outTitle  from books where id = theId;
+		end$$
+
+		DELIMITER ;
+
+		call ShowBooks(4, @id, @title);
+
+		select @id, @title;
+		
+		## Notice in procedure @ sign isnt needed. And all columns that are returned from procedure to be mentioned in the out params, this is not needed in case 
+		we use * in select. 
+		
+	10. InOut Param : 	
+
+		i. if say out param is missing then wil not be able to set the value passed by in param via procdure.
+		
+			DELIMITER $$
+
+			CREATE PROCEDURE `ShowBooks`(in theId int))
+			begin
+			select id;
+			select count(*) into id from books; ## this second select will not work, as we try to set the id, which is a out param and we have not passed out param in SP.
+			end$$
+
+			DELIMITER ;
+			
+			set @id = 123;
+
+			call ShowBooks(@id);
+
+			select @id; ## gives 123 now as second select didnt worked
+			
+		ii. if say in param is missing then select will fail	
+
+			DELIMITER $$
+
+			CREATE PROCEDURE `ShowBooks`(out theId int))
+			begin
+			select id; ## this first select will not work, as we try to set the id, which is a "in" param and we have not passed "in" param for SP.
+			select count(*) into id from books; 
+			end$$
+
+			DELIMITER ;
+			
+			set @id = 123;
+
+			call ShowBooks(@id);
+
+			select @id; ## gives the count now as first select didnt worked
+			
+		iii. inout param :
+
+			DELIMITER $$
+
+			CREATE PROCEDURE `ShowBooks`(inout theId int))
+			begin
+			select id;
+			select count(*) into id from books; 
+			end$$
+
+			DELIMITER ;
+			
+			set @id = 123;
+
+			call ShowBooks(@id);
+
+			select @id; ## gives the count now as both select will work
+		
+	11. IF Statements : (if then else)
+	
+		## example 
+		
+			delimiter //
+
+			create procedure withdraw(in flag bool)
+			begin
+
+				if flag=true then
+					select "Hello";
+				else
+					select "Goodbye";
+				end if;
+
+			end//
+
+			delimiter ;
+
+			call withdraw(true);
+			
+	12. Local variable : in case we dont define a local var then it will be intilized to NULL.
+	
+		## @@session.sql_mode (session variable shown just for example)
+
+		create procedure withdraw(in flag bool)
+		begin
+			
+			declare current_balance numeric(7, 2) default 0.0;
+			
+			select current_balance;
+			
+			-- Check the current balance of the account
+			-- If balance big enough, do withdrawal
+
+		end//
+		
+	13. Accounts Withdrwal Redone : 
+
+		create procedure withdraw(in account_id int, in amount numeric(7, 2), out success bool)
+		begin
+			
+			declare current_balance numeric(7, 2) default 0.0;
+			
+			select balance into current_balance from accounts where id=account_id;
+			
+			if current_balance >= amount then
+				update accounts set balance = balance - amount where id=account_id;
+				set success=true;
+			else
+				set success=false;
+			end if;
+			
+			-- Check the current balance of the account
+			-- If balance big enough, do withdrawal
+
+		end//
+
+		delimiter ;
+
+		call withdraw(1, 251, @success);
+
+		select @success;
+		
+	## Note though here we are checking balance and then allowing the update, but the problem is two different connection can be runing the same, and they may read balance, 
+		at same times, hence again we will run into the issue of having -negative balance. 
+		
+		To resolve this we are going to make this SP run with transaction.
+		
+	14. Transactional Withdrwal : 
+	
+		delimiter //
+
+		create procedure withdraw(in account_id int, in amount numeric(7, 2), out success bool)
+		begin
+			
+			declare current_balance numeric(7, 2) default 0.0;
+			
+			start transaction;
+			
+				select balance into current_balance from accounts where id=account_id for update; 
+				## gives write lock on the row, so no one can read or update the same.
+				## if balance column dont have index then whole tabel will be locked.
+				
+				if current_balance >= amount then
+					update accounts set balance = balance - amount where id=account_id;
+					set success=true;
+				else
+					set success=false;
+				end if;
+			
+			commit;
+			
+		end//
+
+		delimiter ;
+		
+	15. Warnings & Errors :
+	
+		Any Recent errors occured in mysql can be seen by the command : show errors;
+		Any Recent warnings occured in mysql can be seen by the command : show warnings;
+		
+		i. in case or error mysql / stored procedure will exit and not proceed . eg : select * from plants; (plants dont exists)
+		ii. in case warning a warnings message is generated. eg : select * from users where id = 100; (table exists but record with id 100 dont)
+
+	16. Handling error in SP : error and warning handlers are also defined using "declare" keyword. They are defined after variable declaration.
+	
+		delimiter //
+
+		create procedure withdraw(in account_id int, in amount numeric(7, 2), out success bool)
+		begin
+			
+			declare current_balance numeric(7, 2) default 0.0;
+			
+			declare exit handler for sqlexception
+			begin
+				show errors;
+			end;
+			
+			declare exit handler for sqlwarning
+			begin
+				show warnings;
+			end;
+			
+			start transaction;
+			
+				select balance into current_balance from accounts where id=account_id for update;
+				
+				if current_balance >= amount then
+					update accounts set balance = balance - amount where id=account_id;
+					set success=true;
+				else
+					set success=false;
+				end if;
+			
+			commit;
+			
+		end//
+
+		delimiter ;
+		
+	17. Loops in SP : (while condition do)
+
+		delimiter $$
+
+		create procedure whiledemo()
+		begin
+
+		declare count int default 0;
+		declare numbers varchar(30) default "";
+
+		while count < 10 do
+
+		set numbers := concat(numbers, count);
+
+		set count := count + 1;
+
+		end while;
+
+		select numbers;
+
+		end$$
+
+		delimiter ;
+
+		drop procedure whiledemo;
+
+		call whiledemo();
+		
+	18. Labelled loop : (using keyword loop , we use this when we dnt know as how many times a loop shall run)	
+	
+		delimiter $$
+
+		create procedure loopdemo()
+		begin
+
+		declare count int default 0;
+		declare numberlist varchar(30) default "";
+
+		the_loop: loop
+
+			if count = 10 then
+				leave the_loop;
+			end if;
+
+			set numberlist := concat(numberlist, count);
+			
+			if count != 9 then
+				set numberlist := concat(numberlist, ", ");
+			end if;
+
+			set count := count + 1;
+
+		end loop;
+
+		select numberlist;
+
+		end$$
+
+		delimiter ;
+
+		drop procedure loopdemo;
+
+		call loopdemo();
+
+	18. Generating Test Data Using SP: 	
+	
+		delimiter $$
+
+		create procedure testdata()
+		begin
+
+			declare NUMROWS int default 10000;
+			declare count int default 0;
+			
+			declare registered_value date default null;
+			declare email_value varchar(40) default null;
+			declare active_value boolean default false;
+
+			drop table if exists users;
+
+			create table users (id int auto_increment primary key, email varchar(40) not null, registered date not null, 
+			active boolean default false);
+
+			while count < NUMROWS do
+			
+				set registered_value := date(now()) - interval floor(10000*rand()) day;
+				set active_value := round(rand());
+				set email_value := concat("user", count, "@caveofprogramming.com");
+				
+				insert into users (email, registered, active) values (email_value, registered_value, active_value);
+			
+				set count := count + 1;
+			end while;
+
+		end$$

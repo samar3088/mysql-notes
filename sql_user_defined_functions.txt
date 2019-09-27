@@ -1,0 +1,2 @@
+# A function returns a single value, while a stored procedure doesnt have a return value
+# We cant write Aggregate function in user defined functions

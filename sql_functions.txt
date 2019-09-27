@@ -1,0 +1,48 @@
+# Sring Functions :
+
+	i. select concat("Title: ", title) from books;
+	ii. select concat('My', ' ', 'name is', ' ', 'John'); 
+	iii. select lcase('Fred');
+	iv. select ucase(left('England', 2));
+	v. select trim('  fox  '); 
+	vi. set @greeting = 'Hello Bob. How are you?';
+	vii. select substr(@greeting, 7, 3);
+	
+# Date & Time Functions : 
+
+	# interval is used to add or subtract day or month or year in a given date.
+	# date_sub() gives a date after adding or subtracting interval
+	# datediff() gives us difference between two dates in days
+	# from_days(), takes datediff() further by returning number of day in year-month-days
+	# dayname() gets us the day name from a given date. 
+
+	i. create table dates(id int primary key auto_increment, applied date not null);
+	ii. select curdate();
+	iii. insert into dates (applied) values (curdate() - interval 10 year);
+	iv. select * from dates;
+	v. select curdate() + interval 36 day;
+	vi. select date_sub('2010-06-16', interval 5 month);
+	vii. select id, year(applied) from dates where applied = '2011-02-08';
+	viii. set @born = '1974-05-15';
+	ix. select dayname(@born);
+	x. select from_days(datediff(curdate(), @born));
+	xi. str_to_date('2019-09-12','%y %m %d') : converts String to date
+	xii. date_format('2019-09-12','%y %m %d') converts date to string
+	
+# Control Flow Statements :
+
+	i. create table parts(id int primary key auto_increment, part_id varchar(20) default null, catalog_id varchar(20) not null);
+	ii. insert into parts(part_id, catalog_id) values (null, 'AB126');
+	iii. select if(part_id is not null, part_id, catalog_id) as identifier from parts; (can check any boolean statement)
+	iv. select if(part_id is not null, part_id, catalog_id) as identifier from parts where if(part_id is not null, part_id, catalog_id) = 'XYZ35';
+	v. select * from parts;
+	vi. select ifnull(part_id, catalog_id) as identifier from parts; (only checks for null)
+	
+# Casting :
+	
+	When we try to concat a string type variable with an integer, we will get blob returned from mysql. To resolve this we convert int to string by using 
+	(Cast (column) as char)
+
+	i. select cast('1974-05-15' as char);
+	ii. show tables;
+	iii. select concat("Number of books: ", cast(count(*) as char))  from books;	

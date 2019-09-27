@@ -1,0 +1,46 @@
+SQL VIEWS : We cant create index to a view
+
+	#show full tables; this stement shows views and tables in mysql
+
+	Example :
+
+	create table book(id int primary key auto_increment, name varchar(50) not null, notes varchar(100));
+
+	create view bookview as select id, name from book;
+
+	select * from bookview LIMIT 0, 1000;
+	insert into bookview (id, name) values (2, "War and Peace");
+	drop view bookview;
+
+View Algorithms :
+
+	create algorithm=merge view customer_sales1 as select c.id as customer_id, sold_at from sales s join customers c on c.id=s.customer_id;
+	##mysql will combines the query which was used to create the view along with view itself.
+	## cant handle group by, aggregate functions etc
+
+	create algorithm=temptable view customer_sales2 as select c.id as customer_id, sold_at from sales s join customers c on c.id=s.customer_id;
+	## A temp table will be created. 
+	## can handle group by,aagregate functions etc
+	
+	create algorithm=undefined view customer_sales3 as select c.id as customer_id, sold_at from sales s join customers c on c.id=s.customer_id;
+	## myslq decides best algorithm to create the view
+	
+View With Check Option : if we try to insert a data in view which will not be displayed upon querying that view, thn we will get an error 	
+	
+	create view bookview as select id, name from book where id < 15 with check option;
+	
+	insert into bookview (id, name) values (20, "War and Peace"); ## gives error as id is greater than 15
+	
+InLine Views : (Use Health Survey Database attached -- check in git account)
+
+	# A temporary table is created everytime we use inline view.
+	# If we want to use an aggregate function on an aggregate function then its not possible in mysql. For Example : 
+	
+		select country,avg(count(*)) from survey group by country; 
+		
+		## this will not work unless we are having an inline view. 
+		## consider if this was available as a view / table then we can easily call query on this view.
+
+		## Then consider rewritting the above as : 
+		
+			select avg(respondents) from (select country,count(*) as respondents from survey group by country) as totals;

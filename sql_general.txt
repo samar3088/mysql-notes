@@ -1,0 +1,8 @@
+1. set default_storage_engine=INNODB
+2. select @@GLOBAL.sql_mode, @@SESSION.sql_mode ('STRICT ALL Table', 'NO ENGINE SUBSTITUTION')
+3. sql_safe_updates=0;
+4. explain select * from users;
+5. XOR doest gives us null values in case any one is null, as null fails the condition
+6. Distinct with mutiple columns will filter based on all columns.
+
+	select distinct name, age from users;

@@ -1,0 +1,63 @@
+JOINS : 
+
+1. Cartesian Join :
+
+	# select p.id as person_id, p.name, p.address_id as person_address_id, a.id as address_id, a.street from person p, address a;
+	# Now Filtering Result with where clause . First Cartesian is done and then results are filtered :
+	
+	select p.id as person_id, p.name, p.address_id as person_address_id, a.id as address_id, a.street from person p, address a where p.address_id=a.id;
+
+NOTE :  In joins "on", operator actually acts as comparision operator. THe best example is given in SELF JOIN below. 
+	
+2. Inner Join : (Gives rows matching from both tables)
+
+	select p.id as person_id, p.name, p.address_id as person_address_id, a.id as address_id, a.street from person p 
+	inner join address a on a.id=p.address_id;
+	
+3. Left Join : (Gives rows from left table matching from right table, in case right table dont have matching rows then NULL is returned)
+
+		—- outer keyword is optional (has no effect)
+		select name, street from person p left outer join address a on p.address_id = a.id;
+		
+4. Right Join :
+
+		—- outer keyword is optional (has no effect)
+		select name, street from person p right outer join address a on p.address_id = a.id;	
+		
+5. Many to Many Relation :
+
+	create table product (id int primary key auto_increment, name varchar(50));
+
+	insert into product (name) values ('Electric cat groomer'), ('Automatic dog chaser'), ('Egg warmer');
+
+	create table person_product (person_id int not null, product_id int not null,  foreign key (person_id) references person(id),  foreign key (product_id) references product(id));
+
+	insert into person_product (person_id, product_id) values (1, 3), (5, 2), (1, 3), (1, 3), (2, 1), (3, 2);
+
+	select p.name, pp.product_id, pr.name from person p 
+	join person_product pp on pp.person_id=p.id  
+	join product pr on pr.id=pp.product_id LIMIT 0, 1000;
+	
+6. SELF JOIN : 
+
+	create table seats (id int primary key auto_increment, free bool);
+	insert into seats (free) values (true), (false), (true), (true), (false), (true), (false), (true), (true), (false), (true);
+	select s1.id as 'Seat One ID' from seats s1 join seats s2 on s1.id+1=s2.id where s1.free=true and s2.free=true;
+	
+7. FULL Join / FULL OUTER JOIN : full join isnt there in mysql as of now but we can achieve that using UNION .
+
+	* for a union operator to work the tables shall have same fields of same type.
+	* union operator will give us row after filtering duplicates
+	* union all operator will give us all row without filtering duplicates.
+
+	select name, street from person p left outer join address a on p.address_id = a.id;
+	UNION 
+	select name, street from person p right outer join address a on p.address_id = a.id;	
+
+	# above query will first fecth results from both join queries and then remove duplicates. We can optimize this query.	
+	
+	select name, street from person p left outer join address a on p.address_id = a.id where p.address_id IS NULL;
+	UNION ALL
+	select name, street from person p right outer join address a on p.address_id = a.id;	
+	
+	# above query will fetch only rows with null
