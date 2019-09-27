@@ -383,7 +383,7 @@
 			
 				set registered_value := date(now()) - interval floor(10000*rand()) day;
 				set active_value := round(rand());
-				set email_value := concat("user", count, "@caveofprogramming.com");
+				set email_value := concat("user", count, "@sample.com");
 				
 				insert into users (email, registered, active) values (email_value, registered_value, active_value);
 			
